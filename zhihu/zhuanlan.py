@@ -22,7 +22,6 @@ def root(zhuanlan_name):
 
 def all_post(zhuanlan_name):
     url = url_initial(zhuanlan_name)
-    log(url)
     headers = {
         'origin': 'https://zhuanlan.zhihu.com',
         'referer': 'https://zhuanlan.zhihu.com/{}'.format(zhuanlan_name),
@@ -31,12 +30,11 @@ def all_post(zhuanlan_name):
     d = {}
     while True:
         r = requests.get(url, headers=headers)
-        log(r.text)
         j = r.json()
         data = j['data']
         for post in data:
             e_id = post['id']
-            e_title = post['title']
+            e_title = str_filtered(post['title'])
             keys = d.keys()
             if e_id not in keys:
                 d[e_title] = e_id
@@ -105,12 +103,12 @@ def post_cached(zhuanlan_name, post_title):
 
 
 def download_img(zhuanlan_name, src):
-    r = requests.get(src)
     name = zhuanlan_name
     t = str_filtered(src.split('/')[-1])
     p = os.path.join(root(name), 'prettified', 'img', t)
     ensure_path(p)
     if not os.path.exists(p):
+        r = requests.get(src)
         with open(p, 'wb+') as f:
             f.write(r.content)
 
@@ -141,6 +139,7 @@ def post_prettified(zhuanlan_name, post_title):
         p = 'img/{}'.format(f)
         e.attr('src', p)
         download_img(zhuanlan_name, src)
+    dom('link[rel="stylesheet"]').attr('href', 'css/post.css')
     return dom.outer_html()
 
 
@@ -174,6 +173,8 @@ def generate_css(zhuanlan_name):
 def download_and_prettify(zhuanlan_name):
     d = all_post_cached(zhuanlan_name)
     for i in d.keys():
+        u = 'https://zhuanlan.zhihu.com/p/{}'.format(d[i])
+        log('download {}'.format(d[i]), i)
         post_prettified_cached(zhuanlan_name, i)
     generate_css(zhuanlan_name)
 
@@ -187,4 +188,6 @@ def generate_pdf(zhuanlan_name):
     input = [os.path.join(p, i) for i in arr]
     f = os.path.join('out', 'zhuanlan-{}.pdf'.format(name))
     ensure_path(f)
+    log('starting generate pdf............')
     pdfkit.from_file(input, f)
+    log('generate pdf succeed')
