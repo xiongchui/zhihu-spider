@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from pyquery import PyQuery as pq
 from . import log, ensure_path, str_filtered, sorted_pinyin, cookie
 import pdfkit
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 def url_initial(zhuanlan_name):
@@ -175,16 +176,6 @@ def post_prettified(zhuanlan_name, post_title):
     return dom.outer_html()
 
 
-# def post_prettified_cached(zhuanlan_name, post_title):
-#     name = zhuanlan_name
-#     p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(post_title))
-#     ensure_path(p)
-#     with open(p, 'w+') as f:
-#         s = post_prettified(zhuanlan_name, post_title)
-#         f.write(s)
-#         return s
-#
-
 def generate_css(zhuanlan_name):
     name = zhuanlan_name
     p = os.path.dirname(__file__)
@@ -197,17 +188,28 @@ def generate_css(zhuanlan_name):
             f2.write(s)
 
 
-def download_and_prettify(zhuanlan_name):
-    name = zhuanlan_name
-    d = all_post_cached(name)
-    for i in d.keys():
-        u = 'https://zhuanlan.zhihu.com/p/{}'.format(d[i])
-        log('download zhuanlan', name, u, i)
-        p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(i))
-        ensure_path(p)
-        with open(p, 'w+') as f:
-            s = post_prettified(name, i)
-            f.write(s)
+def job(people_name, post_title, post_id):
+    i = post_id
+    t = post_title
+    name = people_name
+    u = 'https://zhuanlan.zhihu.com/p/{}'.format(i)
+    log('download zhuanlan', name, u, t)
+    p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(t))
+    ensure_path(p)
+    with open(p, 'w+') as f:
+        s = post_prettified(name, t)
+        f.write(s)
+
+
+def download_and_prettify(people_name):
+    name = people_name
+    d = all_post_cached(people_name)
+    pool = ThreadPool(processes=4)
+    for k in d.keys():
+        v = d[k]
+        pool.apply_async(job, (name, k, v))
+    pool.close()
+    pool.join()
     generate_css(name)
 
 

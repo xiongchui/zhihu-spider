@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from pyquery import PyQuery as pq
 from . import log, ensure_path, str_filtered, sorted_pinyin, cookie
 import pdfkit
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 def url_offset(people_name, offset=0):
@@ -109,8 +110,8 @@ def id_by_title(people_name, post_title):
 
 def post(people_name, post_title):
     name = people_name
-    headers = header_post(people_name)
-    post_id = id_by_title(people_name, post_title)
+    headers = header_post(name)
+    post_id = id_by_title(name, post_title)
     url = 'https://zhuanlan.zhihu.com/p/{}'.format(post_id)
     html = requests.get(url, headers=headers).text
     return html
@@ -181,21 +182,6 @@ def post_prettified(people_name, post_title):
     return dom.outer_html()
 
 
-# def post_prettified_cached(people_name, post_title):
-#     name = people_name
-#     p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(post_title))
-#     ensure_path(p)
-#     if os.path.exists(p):
-#         with open(p, 'r') as f:
-#             s = f.read()
-#             return s
-#     else:
-#         with open(p, 'w+') as f:
-#             s = post_prettified(people_name, post_title)
-#             f.write(s)
-#             return s
-
-
 def generate_css(people_name):
     name = people_name
     p = os.path.dirname(__file__)
@@ -208,17 +194,28 @@ def generate_css(people_name):
             f2.write(s)
 
 
+def job(people_name, post_title, post_id):
+    i = post_id
+    t = post_title
+    name = people_name
+    u = 'https://zhuanlan.zhihu.com/p/{}'.format(i)
+    log('download post', name, u, t)
+    p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(t))
+    ensure_path(p)
+    with open(p, 'w+') as f:
+        s = post_prettified(name, t)
+        f.write(s)
+
+
 def download_and_prettify(people_name):
     name = people_name
     d = all_post_cached(people_name)
-    for i in d.keys():
-        u = 'https://zhuanlan.zhihu.com/p/{}'.format(d[i])
-        log('download post', name, u, i)
-        p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(i))
-        ensure_path(p)
-        with open(p, 'w+') as f:
-            s = post_prettified(name, i)
-            f.write(s)
+    pool = ThreadPool(processes=4)
+    for k in d.keys():
+        v = d[k]
+        pool.apply_async(job, (name, k, v))
+    pool.close()
+    pool.join()
     generate_css(name)
 
 
@@ -234,4 +231,3 @@ def generate_pdf(people_name):
     log('------- starting generate pdf: ', 'people ', people_name)
     pdfkit.from_file(input, f)
     log('generate pdf succeed')
-
