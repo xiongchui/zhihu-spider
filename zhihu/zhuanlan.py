@@ -3,7 +3,7 @@ import time
 import os
 import json
 from pyquery import PyQuery as pq
-from . import log, ensure_path, str_filtered, sorted_pinyin
+from . import log, ensure_path, str_filtered, sorted_pinyin, cookie
 import pdfkit
 
 
@@ -20,13 +20,31 @@ def root(zhuanlan_name):
     return os.path.join('cache', 'zhuanlan', name)
 
 
-def all_post(zhuanlan_name):
-    url = url_initial(zhuanlan_name)
+def headers_posts_by_name(zhuanlan_name):
+    name = zhuanlan_name
+    headers = {
+        'origin': 'https://zhuanlan.zhihu.com',
+        'referer': 'https://zhuanlan.zhihu.com/{}'.format(name),
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
+    }
+    return headers
+
+
+def header_post(zhuanlan_name):
+    name = zhuanlan_name
     headers = {
         'origin': 'https://zhuanlan.zhihu.com',
         'referer': 'https://zhuanlan.zhihu.com/{}'.format(zhuanlan_name),
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
+        'cookie': cookie(),
     }
+    return headers
+
+
+def all_post(zhuanlan_name):
+    name = zhuanlan_name
+    url = url_initial(name)
+    headers = headers_posts_by_name(name)
     d = {}
     while True:
         r = requests.get(url, headers=headers)
@@ -75,11 +93,7 @@ def id_by_title(zhuanlan_name, post_title):
 
 
 def post(zhuanlan_name, post_title):
-    headers = {
-        'origin': 'https://zhuanlan.zhihu.com',
-        'referer': 'https://zhuanlan.zhihu.com/{}'.format(zhuanlan_name),
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
-    }
+    headers = header_post(zhuanlan_name)
     post_id = id_by_title(zhuanlan_name, post_title)
     url = 'https://zhuanlan.zhihu.com/p/{}'.format(post_id)
     html = requests.get(url, headers=headers).text
@@ -136,16 +150,21 @@ def post_prettified(zhuanlan_name, post_title):
         e = pq(i)
         src = e.attr('data-original') or e.attr('data-actualsrc') or e.attr('src')
         f = str_filtered(src.split('/')[-1])
-        p = 'img/{}'.format(f)
+        p = '../img/{}'.format(f)
         e.attr('src', p)
         download_img(zhuanlan_name, src)
-    dom('link[rel="stylesheet"]').attr('href', 'css/post.css')
+    dom('link[rel="stylesheet"]').attr('href', '../css/post.css')
+    for i in dom.find('.UserLink-link'):
+        e = pq(i)
+        href = e.attr('href')
+        if href.startswith('//'):
+            e.attr('href', 'https:{}'.format(href))
     return dom.outer_html()
 
 
 def post_prettified_cached(zhuanlan_name, post_title):
     name = zhuanlan_name
-    p = os.path.join(root(name), 'prettified', '{}.html'.format(post_title))
+    p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(post_title))
     ensure_path(p)
     if os.path.exists(p):
         with open(p, 'r') as f:
@@ -182,7 +201,7 @@ def download_and_prettify(zhuanlan_name):
 def generate_pdf(zhuanlan_name):
     name = zhuanlan_name
     download_and_prettify(zhuanlan_name)
-    p = os.path.join(root(name), 'prettified')
+    p = os.path.join(root(name), 'prettified', 'html')
     arr = filter(lambda e: e.endswith('.html'), os.listdir(p))
     arr = sorted_pinyin(list(arr))
     input = [os.path.join(p, i) for i in arr]
