@@ -1,0 +1,4 @@
+pdfkit==0.6.1
+pyquery==1.4.0
+requests==2.19.1
+pypinyin==0.33.1
