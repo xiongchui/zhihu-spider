@@ -11,7 +11,7 @@
 - [] 个人所有答案导出 pdf
 - [] epub文件格式支持
 - [] 使用 zhihu-oauth 重写 api
-- [] 改进繁琐的 cookie 复制过程
+- [] 改进繁琐的 cookie 复制过程
 - [] 使用 pyqt
 - [] 代码逻辑分离
 
@@ -19,18 +19,18 @@
 
 ### 运行环境
 
-带有 `brew` 和 `python3` 的 `MacOS`
+带有 `brew` 和 `python3` 的 `MacOS`
 
 ### 运行步骤
 
-1. list.txt 中添加需要导出的专栏和个人文章页 url, 如下所示
+1. list.txt 中添加需要导出的专栏和个人文章页 url, 如下所示
 
 ```
 https://zhuanlan.zhihu.com/c_72090295
 https://www.zhihu.com/people/lfkdsk/posts
 ```
 
-2. zhihu/config.json 中 cookie 字段需从浏览器复制
+2. zhihu/config.json 中 cookie 字段需从浏览器复制
 
 ```json
 {
