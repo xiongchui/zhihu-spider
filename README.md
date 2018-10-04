@@ -19,7 +19,7 @@
 
 ### 运行环境
 
-带有 `brew` 和 `python3` 的 `MacOS`
+带有 `brew` 和 `python3` 的 `MacOS`
 
 ### 运行步骤
 
