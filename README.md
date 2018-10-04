@@ -32,9 +32,11 @@ https://www.zhihu.com/people/lfkdsk/posts
 
 2. zhihu/config.json 中 cookie 字段需从浏览器复制
 
+**一定要添加 cookie 避免请求失败**
+
 ```json
 {
-    "cookie": "需要从浏览器复制",
+    "cookie": "需要从浏览器复制"
 }
 ```
 

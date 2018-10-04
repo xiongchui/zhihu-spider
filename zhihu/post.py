@@ -2,6 +2,7 @@ import requests
 import time
 import os
 import json
+from urllib.parse import unquote
 from pyquery import PyQuery as pq
 from . import log, ensure_path, str_filtered, sorted_pinyin, cookie
 import pdfkit
@@ -35,6 +36,15 @@ def header_post(people_name):
         'referer': 'https://www.zhihu.com/people/{}/posts'.format(name),
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
         'Cookie': cookie()
+    }
+    return headers
+
+
+def headers_img(post_id):
+    u = 'https://zhuanlan.zhihu.com/p/{}'.format(post_id)
+    headers = {
+        'referer': u,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36',
     }
     return headers
 
@@ -122,13 +132,16 @@ def post_cached(people_name, post_title):
             return s
 
 
-def download_img(people_name, src):
+def download_img(people_name, post_title, src):
     name = people_name
     t = str_filtered(src.split('/')[-1])
+    t = unquote(t)
     p = os.path.join(root(name), 'prettified', 'img', t)
     ensure_path(p)
     if not os.path.exists(p):
-        r = requests.get(src)
+        post_id = id_by_title(name, post_title)
+        headers = headers_img(post_id)
+        r = requests.get(src, headers=headers)
         with open(p, 'wb+') as f:
             f.write(r.content)
 
@@ -158,7 +171,7 @@ def post_prettified(people_name, post_title):
         f = str_filtered(src.split('/')[-1])
         p = '../img/{}'.format(f)
         e.attr('src', p)
-        download_img(people_name, src)
+        download_img(people_name, post_title, src)
     dom('link[rel="stylesheet"]').attr('href', '../css/post.css')
     for i in dom.find('.UserLink-link'):
         e = pq(i)
@@ -168,19 +181,19 @@ def post_prettified(people_name, post_title):
     return dom.outer_html()
 
 
-def post_prettified_cached(people_name, post_title):
-    name = people_name
-    p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(post_title))
-    ensure_path(p)
-    if os.path.exists(p):
-        with open(p, 'r') as f:
-            s = f.read()
-            return s
-    else:
-        with open(p, 'w+') as f:
-            s = post_prettified(people_name, post_title)
-            f.write(s)
-            return s
+# def post_prettified_cached(people_name, post_title):
+#     name = people_name
+#     p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(post_title))
+#     ensure_path(p)
+#     if os.path.exists(p):
+#         with open(p, 'r') as f:
+#             s = f.read()
+#             return s
+#     else:
+#         with open(p, 'w+') as f:
+#             s = post_prettified(people_name, post_title)
+#             f.write(s)
+#             return s
 
 
 def generate_css(people_name):
@@ -196,12 +209,17 @@ def generate_css(people_name):
 
 
 def download_and_prettify(people_name):
+    name = people_name
     d = all_post_cached(people_name)
     for i in d.keys():
         u = 'https://zhuanlan.zhihu.com/p/{}'.format(d[i])
-        log('download {}'.format(d[i]), i)
-        post_prettified_cached(people_name, i)
-    generate_css(people_name)
+        log('download post', name, u, i)
+        p = os.path.join(root(name), 'prettified', 'html', '{}.html'.format(i))
+        ensure_path(p)
+        with open(p, 'w+') as f:
+            s = post_prettified(name, i)
+            f.write(s)
+    generate_css(name)
 
 
 def generate_pdf(people_name):
@@ -213,6 +231,7 @@ def generate_pdf(people_name):
     input = [os.path.join(p, i) for i in arr]
     f = os.path.join('out', 'post-{}.pdf'.format(name))
     ensure_path(f)
-    log('starting generate pdf............')
+    log('------- starting generate pdf: ', 'people ', people_name)
     pdfkit.from_file(input, f)
     log('generate pdf succeed')
+
